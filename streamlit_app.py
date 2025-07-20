@@ -202,7 +202,7 @@ class BaseballAnalyzer:
         self.df['Total_Flags'] = self.df[flag_cols].sum(axis=1)
 
 def main():
-    st.markdown('<h1 class="main-header">⚾ Elite Baseball Training - Program Analysis Dashboard</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header"> Elite Baseball Training - Program Analysis Dashboard</h1>', unsafe_allow_html=True)
     
     # Initialize analyzer
     if 'analyzer' not in st.session_state:
@@ -211,7 +211,7 @@ def main():
     
     # Sidebar for data management
     with st.sidebar:
-        st.header("📁 Data Management")
+        st.header("Data Management")
         
         # Data folder info
         data_folder = st.text_input("Data Folder Path", value="data", help="Folder containing your CSV files")
