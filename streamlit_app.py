@@ -63,15 +63,11 @@ class BaseballAnalyzer:
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from scipy import stats
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import re
-import io
-import base64
 import os
 import glob
 
