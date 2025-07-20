@@ -5,64 +5,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy import stats
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import re
-import io
-import base64
-
-# Page configuration
-st.set_page_config(
-    page_title="Elite Baseball Training - Program Analysis",
-    page_icon="⚾",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Custom CSS for styling
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 3rem;
-        font-weight: bold;
-        text-align: center;
-        color: #1f4e79;
-        margin-bottom: 2rem;
-    }
-    .metric-container {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-    }
-    .flag-high { background-color: #ffebee; }
-    .flag-medium { background-color: #fff3e0; }
-    .flag-low { background-color: #e8f5e8; }
-</style>
-""", unsafe_allow_html=True)
-
-class BaseballAnalyzer:
-    def __init__(self):
-        self.df = None
-        self.flag_criteria = {
-            'AVG_low': 0.250,
-            'SLG_low': 0.350,
-            'OPS_low': 0.700,
-            'GB_high': 66.0,
-            'K_high': 30.0
-        }
-    
-# Elite Baseball Training - Streamlit Web App
-# Save this as: streamlit_app.py
-# Run with: streamlit run streamlit_app.py
-
-import streamlit as st
-import pandas as pd
-import numpy as np
 from scipy import stats
 import plotly.express as px
 import plotly.graph_objects as go
@@ -371,180 +313,6 @@ def main():
     
     with tab5:
         create_statistics_tab(df)
-    
-    def clean_team_name(self, team_name):
-        """Clean team names to show only coach names"""
-        name = team_name
-        
-        # Remove prefixes
-        prefixes = ["Elite Baseball Training ", "Elite Baseball - ", "Elite Baseball-", "Elite ", "EBT "]
-        for prefix in prefixes:
-            if name.startswith(prefix):
-                name = name[len(prefix):]
-                break
-        
-        # Remove suffixes
-        suffixes = [" Summer 2025 Stats", " Spring 2025 Stats", " Summer 2025", " Spring 2025", " Stats"]
-        for suffix in suffixes:
-            if name.endswith(suffix):
-                name = name[:-len(suffix)]
-                break
-        
-        # Extract coach name and age group
-        age_match = re.search(r'(\d+U)', name)
-        age_group = age_match.group(1) if age_match else ""
-        coach_name = re.sub(r'\s*\d+U\s*', ' ', name).strip()
-        coach_name = re.sub(r'\s+', ' ', coach_name)
-        
-        if coach_name and age_group:
-            return f"{coach_name} {age_group}"
-        elif coach_name:
-            return coach_name
-        elif age_group:
-            return age_group
-        else:
-            return name
-    
-    def extract_age_group(self, team_name):
-        """Extract age group from team name"""
-        age_match = re.search(r'(\d+)U', team_name)
-        return f"{age_match.group(1)}U" if age_match else "Unknown"
-    
-    def flag_players(self):
-        """Flag players based on criteria"""
-        if self.df is None:
-            return
-        
-        # Create flags
-        self.df['Flag_AVG_Low'] = (self.df['AVG'] < self.flag_criteria['AVG_low']) & self.df['AVG'].notna()
-        self.df['Flag_SLG_Low'] = (self.df['SLG'] < self.flag_criteria['SLG_low']) & self.df['SLG'].notna()
-        self.df['Flag_OPS_Low'] = (self.df['OPS'] < self.flag_criteria['OPS_low']) & self.df['OPS'].notna()
-        self.df['Flag_GB_High'] = (self.df['GB%'] > self.flag_criteria['GB_high']) & self.df['GB%'].notna()
-        self.df['Flag_K_High'] = (self.df['K%'] > self.flag_criteria['K_high']) & self.df['K%'].notna()
-        
-        # Count total flags
-        flag_cols = ['Flag_AVG_Low', 'Flag_SLG_Low', 'Flag_OPS_Low', 'Flag_GB_High', 'Flag_K_High']
-        self.df['Total_Flags'] = self.df[flag_cols].sum(axis=1)
-
-def main():
-    st.markdown('<h1 class="main-header">⚾ Elite Baseball Training - Program Analysis Dashboard</h1>', unsafe_allow_html=True)
-    
-    # Initialize analyzer
-    if 'analyzer' not in st.session_state:
-        st.session_state.analyzer = BaseballAnalyzer()
-    
-def main():
-    st.markdown('<h1 class="main-header">⚾ Elite Baseball Training - Program Analysis Dashboard</h1>', unsafe_allow_html=True)
-    
-    # Initialize analyzer
-    if 'analyzer' not in st.session_state:
-        st.session_state.analyzer = BaseballAnalyzer()
-        st.session_state.data_loaded = False
-    
-    # Sidebar for data management
-    with st.sidebar:
-        st.header("📁 Data Management")
-        
-        # Data folder info
-        data_folder = st.text_input("Data Folder Path", value="data", help="Folder containing your CSV files")
-        
-        if st.button("🔄 Load/Reload Data"):
-            with st.spinner("Loading data from folder..."):
-                if st.session_state.analyzer.load_data_from_folder(data_folder):
-                    st.session_state.data_loaded = True
-                    st.rerun()
-                else:
-                    st.session_state.data_loaded = False
-        
-        # Show data folder contents
-        if os.path.exists(data_folder):
-            csv_files = glob.glob(os.path.join(data_folder, "*.csv"))
-            st.subheader("📋 Files in Data Folder")
-            if csv_files:
-                for csv_file in csv_files:
-                    st.text(f"📄 {os.path.basename(csv_file)}")
-            else:
-                st.info("No CSV files found in data folder")
-        else:
-            st.info(f"Create a '{data_folder}' folder and add your CSV files")
-        
-        # Flag criteria adjustment
-        if st.session_state.data_loaded and st.session_state.analyzer.df is not None:
-            st.header("⚙️ Flag Criteria")
-            st.session_state.analyzer.flag_criteria['AVG_low'] = st.number_input("AVG < ", value=0.250, step=0.001, format="%.3f")
-            st.session_state.analyzer.flag_criteria['SLG_low'] = st.number_input("SLG < ", value=0.350, step=0.001, format="%.3f")
-            st.session_state.analyzer.flag_criteria['OPS_low'] = st.number_input("OPS < ", value=0.700, step=0.001, format="%.3f")
-            st.session_state.analyzer.flag_criteria['GB_high'] = st.number_input("GB% > ", value=66.0, step=0.1, format="%.1f")
-            st.session_state.analyzer.flag_criteria['K_high'] = st.number_input("K% > ", value=30.0, step=0.1, format="%.1f")
-            
-            if st.button("🔄 Update Flags"):
-                st.session_state.analyzer.flag_players()
-                st.rerun()
-    
-    # Main content
-    if not st.session_state.data_loaded or st.session_state.analyzer.df is None:
-        st.info("👆 Please load data using the sidebar to get started.")
-        
-        # Setup instructions
-        st.markdown("""
-        ### 📁 Setup Instructions:
-        
-        1. **Create a data folder** in your project directory (default: `data/`)
-        2. **Add your CSV files** from GameChanger to this folder
-        3. **Click "Load/Reload Data"** in the sidebar
-        4. **Explore your data** with the interactive dashboard!
-        
-        ### 📋 File Structure:
-        ```
-        your-project/
-        ├── streamlit_app.py
-        ├── data/
-        │   ├── Elite Baseball Training Team1 Summer 2025 Stats.csv
-        │   ├── Elite Baseball Training Team2 Summer 2025 Stats.csv
-        │   └── ...
-        └── requirements.txt
-        ```
-        
-        ### 🔄 Updating Data:
-        - Add new CSV files to the data folder
-        - Click "Load/Reload Data" to refresh
-        - All analysis updates automatically
-        """)
-        return
-    
-    df = st.session_state.analyzer.df
-    
-    # Program Overview Metrics
-    st.header("📊 Program Overview")
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Total Players", len(df))
-    with col2:
-        st.metric("Total Teams", df['Team'].nunique())
-    with col3:
-        flagged_count = (df['Total_Flags'] > 0).sum()
-        st.metric("Players with Flags", flagged_count, f"{flagged_count/len(df)*100:.1f}%")
-    with col4:
-        st.metric("Program AVG", f"{df['AVG'].mean():.3f}")
-    
-    # Tabs for different views
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📈 Dashboard", "🚩 Flagged Players", "👥 Team Analysis", "📋 Individual Lookup", "📊 Statistics"])
-    
-    with tab1:
-        create_dashboard_tab(df)
-    
-    with tab2:
-        create_flagged_players_tab(df)
-    
-    with tab3:
-        create_team_analysis_tab(df)
-    
-    with tab4:
-        create_individual_lookup_tab(df)
-    
-    with tab5:
-        create_statistics_tab(df)
 
 def create_dashboard_tab(df):
     """Create the main dashboard tab"""
@@ -560,6 +328,7 @@ def create_dashboard_tab(df):
                     labels={'x': 'Number of Flags', 'y': 'Number of Players'},
                     color=flag_dist.index, 
                     color_continuous_scale='RdYlGn_r')
+        fig.update_layout(showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
@@ -574,6 +343,7 @@ def create_dashboard_tab(df):
         flag_df = pd.DataFrame(list(flag_types.items()), columns=['Flag Type', 'Count'])
         fig = px.bar(flag_df, x='Count', y='Flag Type', orientation='h',
                     color='Count', color_continuous_scale='Reds')
+        fig.update_layout(showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
     
     # Performance distributions
@@ -651,19 +421,8 @@ def create_flagged_players_tab(df):
         
         display_df['Issues'] = flag_details
         
-        # Color code by flag count
-        def color_flags(val):
-            if val >= 4:
-                return 'background-color: #ffcdd2'
-            elif val >= 3:
-                return 'background-color: #ffe0b2'
-            elif val >= 2:
-                return 'background-color: #fff9c4'
-            else:
-                return 'background-color: #e8f5e8'
-        
-        styled_df = display_df.style.applymap(color_flags, subset=['Total_Flags'])
-        st.dataframe(styled_df, use_container_width=True)
+        # Display dataframe
+        st.dataframe(display_df, use_container_width=True)
         
         # Download button
         csv = display_df.to_csv(index=False)
@@ -701,20 +460,7 @@ def create_team_analysis_tab(df):
         
         # Sort by flag rate
         team_display = team_summary.sort_values('Flag_Rate', ascending=False)
-        
-        # Color code teams
-        def color_team_flags(val):
-            if val > 50:
-                return 'background-color: #ffcdd2'
-            elif val > 30:
-                return 'background-color: #ffe0b2'
-            elif val > 20:
-                return 'background-color: #fff9c4'
-            else:
-                return 'background-color: #e8f5e8'
-        
-        styled_team_df = team_display.style.applymap(color_team_flags, subset=['Flag_Rate'])
-        st.dataframe(styled_team_df, use_container_width=True)
+        st.dataframe(team_display, use_container_width=True)
         
         # Team flag rate chart
         fig = px.bar(team_display.reset_index(), x='Flag_Rate', y='Team', 
@@ -743,19 +489,7 @@ def create_team_analysis_tab(df):
         st.subheader("Team Roster")
         roster_df = team_data[['First', 'Last', 'AB', 'AVG', 'OPS', 'K%', 'Total_Flags']].copy()
         roster_df = roster_df.sort_values('Total_Flags', ascending=False)
-        
-        def color_player_flags(val):
-            if val >= 3:
-                return 'background-color: #ffcdd2'
-            elif val >= 2:
-                return 'background-color: #ffe0b2'
-            elif val >= 1:
-                return 'background-color: #fff9c4'
-            else:
-                return 'background-color: #e8f5e8'
-        
-        styled_roster = roster_df.style.applymap(color_player_flags, subset=['Total_Flags'])
-        st.dataframe(styled_roster, use_container_width=True)
+        st.dataframe(roster_df, use_container_width=True)
 
 def create_individual_lookup_tab(df):
     """Create the individual player lookup tab"""
@@ -805,15 +539,15 @@ def create_individual_lookup_tab(df):
                 
                 flags = []
                 if player['Flag_AVG_Low']:
-                    flags.append(f"🔴 Low Batting Average (<{st.session_state.analyzer.flag_criteria['AVG_low']:.3f})")
+                    flags.append("🔴 Low Batting Average")
                 if player['Flag_SLG_Low']:
-                    flags.append(f"🟠 Low Slugging Percentage (<{st.session_state.analyzer.flag_criteria['SLG_low']:.3f})")
+                    flags.append("🟠 Low Slugging Percentage")
                 if player['Flag_OPS_Low']:
-                    flags.append(f"🟡 Low OPS (<{st.session_state.analyzer.flag_criteria['OPS_low']:.3f})")
+                    flags.append("🟡 Low OPS")
                 if player['Flag_GB_High']:
-                    flags.append(f"🟤 High Ground Ball Rate (>{st.session_state.analyzer.flag_criteria['GB_high']:.1f}%)")
+                    flags.append("🟤 High Ground Ball Rate")
                 if player['Flag_K_High']:
-                    flags.append(f"🟣 High Strikeout Rate (>{st.session_state.analyzer.flag_criteria['K_high']:.1f}%)")
+                    flags.append("🟣 High Strikeout Rate")
                 
                 for flag in flags:
                     st.write(flag)
