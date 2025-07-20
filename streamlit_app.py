@@ -16,7 +16,7 @@ import glob
 # Page configuration
 st.set_page_config(
     page_title="Elite Baseball Training - Program Analysis",
-    page_icon="",
+    page_icon="⚾",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -202,7 +202,7 @@ class BaseballAnalyzer:
         self.df['Total_Flags'] = self.df[flag_cols].sum(axis=1)
 
 def main():
-    st.markdown('<h1 class="main-header"> Elite Baseball Training - Program Analysis Dashboard</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">⚾ Elite Baseball Training - Program Analysis Dashboard</h1>', unsafe_allow_html=True)
     
     # Initialize analyzer
     if 'analyzer' not in st.session_state:
@@ -211,7 +211,7 @@ def main():
     
     # Sidebar for data management
     with st.sidebar:
-        st.header("Data Management")
+        st.header("📁 Data Management")
         
         # Data folder info
         data_folder = st.text_input("Data Folder Path", value="data", help="Folder containing your CSV files")
@@ -252,32 +252,6 @@ def main():
     # Main content
     if not st.session_state.data_loaded or st.session_state.analyzer.df is None:
         st.info("👆 Please load data using the sidebar to get started.")
-        
-        # Setup instructions
-        st.markdown("""
-        ### 📁 Setup Instructions:
-        
-        1. **Create a data folder** in your project directory (default: `data/`)
-        2. **Add your CSV files** from GameChanger to this folder
-        3. **Click "Load/Reload Data"** in the sidebar
-        4. **Explore your data** with the interactive dashboard!
-        
-        ### 📋 File Structure:
-        ```
-        your-project/
-        ├── streamlit_app.py
-        ├── data/
-        │   ├── Elite Baseball Training Team1 Summer 2025 Stats.csv
-        │   ├── Elite Baseball Training Team2 Summer 2025 Stats.csv
-        │   └── ...
-        └── requirements.txt
-        ```
-        
-        ### 🔄 Updating Data:
-        - Add new CSV files to the data folder
-        - Click "Load/Reload Data" to refresh
-        - All analysis updates automatically
-        """)
         return
     
     df = st.session_state.analyzer.df
