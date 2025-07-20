@@ -251,7 +251,7 @@ def main():
     
     # Main content
     if not st.session_state.data_loaded or st.session_state.analyzer.df is None:
-        st.info("👆 Please load data using the sidebar to get started.")
+        st.info("Please load data using the sidebar to get started.")
         return
     
     df = st.session_state.analyzer.df
