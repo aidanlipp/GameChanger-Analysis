@@ -16,7 +16,7 @@ import glob
 # Page configuration
 st.set_page_config(
     page_title="Elite Baseball Training - Program Analysis",
-    page_icon="⚾",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -202,7 +202,7 @@ class BaseballAnalyzer:
         self.df['Total_Flags'] = self.df[flag_cols].sum(axis=1)
 
 def main():
-    st.markdown('<h1 class="main-header">⚾ Elite Baseball Training - Program Analysis Dashboard</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header"> Elite Baseball Training - Program Analysis Dashboard</h1>', unsafe_allow_html=True)
     
     # Initialize analyzer
     if 'analyzer' not in st.session_state:
