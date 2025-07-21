@@ -79,8 +79,24 @@ class BaseballAnalyzer:
                 progress_bar.progress(progress)
                 status_text.text(f"Processing {os.path.basename(csv_file)}...")
                 
-                # Read CSV, skipping first row (section headers)
-                df = pd.read_csv(csv_file, skiprows=1, header=0)
+                # Read CSV with special handling for GameChanger format
+                # Read all lines first
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                
+                # Find the header line (contains "Number", "Last", "First", etc.)
+                header_line_idx = None
+                for idx, line in enumerate(lines):
+                    if '"Number"' in line and '"Last"' in line and '"First"' in line:
+                        header_line_idx = idx
+                        break
+                
+                if header_line_idx is None:
+                    st.warning(f"⚠️ Could not find proper headers in {os.path.basename(csv_file)}")
+                    continue
+                
+                # Read from header line onwards
+                df = pd.read_csv(csv_file, skiprows=header_line_idx, header=0)
                 
                 # Extract team info from filename
                 team_info = os.path.basename(csv_file).replace('.csv', '').replace('Stats', '').strip()
@@ -91,9 +107,18 @@ class BaseballAnalyzer:
                 # Clean column names
                 df.columns = df.columns.str.strip()
                 
-                # Focus on batting data (first 54 columns)
-                if len(df.columns) > 54:
-                    df = df.iloc[:, :54]
+                # Focus on batting data (first 54 columns or until pitching section)
+                batting_cols = []
+                for col in df.columns:
+                    if 'IP' in col and len(batting_cols) > 20:  # IP usually starts pitching section
+                        break
+                    batting_cols.append(col)
+                
+                # Keep only batting columns (up to about 54 columns or before pitching starts)
+                if len(batting_cols) > 54:
+                    batting_cols = batting_cols[:54]
+                
+                df = df[batting_cols]
                 
                 # Add team information
                 df['Team'] = team_info
@@ -103,26 +128,36 @@ class BaseballAnalyzer:
                 if 'Last' in df.columns and 'First' in df.columns:
                     df = df.dropna(subset=['Last', 'First'])
                     df = df[df['Last'].notna() & (df['Last'] != '')]
+                    df = df[df['Last'] != 'Last']  # Remove any duplicate header rows
                 
-                # Convert numeric columns
+                # Convert numeric columns with robust error handling
                 numeric_cols = ['GP', 'PA', 'AB', 'AVG', 'OBP', 'OPS', 'SLG', 'H', '1B', '2B', 
-                              '3B', 'HR', 'RBI', 'R', 'BB', 'SO', 'HBP', 'GB%', 'LD%', 'FB%', 'BABIP']
+                              '3B', 'HR', 'RBI', 'R', 'BB', 'SO', 'HBP', 'GB%', 'LD%', 'FB%', 'BABIP', 'TB', 'SF']
                 
                 for col in numeric_cols:
                     if col in df.columns:
-                        df[col] = df[col].astype(str).replace(['-', '', 'nan', 'NaN', '#DIV/0!', '#N/A'], np.nan)
+                        # Convert to string first, then handle special values
+                        df[col] = df[col].astype(str)
+                        # Replace problematic values
+                        df[col] = df[col].replace(['-', '', 'nan', 'NaN', '#DIV/0!', '#N/A', 'inf', '-inf'], np.nan)
+                        # Convert to numeric, coercing errors to NaN
                         df[col] = pd.to_numeric(df[col], errors='coerce')
                 
-                # Calculate K%
+                # Calculate K% with better error handling
                 if 'SO' in df.columns and 'PA' in df.columns:
+                    # Ensure both columns are numeric
+                    df['SO'] = pd.to_numeric(df['SO'], errors='coerce')
+                    df['PA'] = pd.to_numeric(df['PA'], errors='coerce')
+                    
                     df['K%'] = np.where(
-                        (df['PA'] > 0) & df['PA'].notna(),
+                        (df['PA'] > 0) & df['PA'].notna() & df['SO'].notna(),
                         (df['SO'] / df['PA']) * 100,
                         np.nan
                     )
                 
                 # Filter players with at least 20 AB
                 if 'AB' in df.columns:
+                    df['AB'] = pd.to_numeric(df['AB'], errors='coerce')
                     initial_count = len(df)
                     df = df[df['AB'] >= 20]
                     filtered_count = initial_count - len(df)
@@ -431,31 +466,31 @@ def create_team_analysis_tab(df):
     # Team summary with weighted calculations
     def calculate_weighted_team_stats(team_df):
         """Calculate team stats weighted by at-bats"""
-        total_ab = team_df['AB'].sum()
-        total_pa = team_df['PA'].sum()
-        total_hits = team_df['H'].sum()
-        total_bb = team_df['BB'].sum()
-        total_so = team_df['SO'].sum()
+        # Ensure all values are numeric and handle NaN values
+        def safe_sum(column_name):
+            if column_name in team_df.columns:
+                series = pd.to_numeric(team_df[column_name], errors='coerce')
+                return series.fillna(0).sum()
+            return 0
         
-        # Calculate total bases if TB column exists, otherwise derive from SLG
+        total_ab = safe_sum('AB')
+        total_pa = safe_sum('PA')
+        total_hits = safe_sum('H')
+        total_bb = safe_sum('BB')
+        total_so = safe_sum('SO')
+        total_hbp = safe_sum('HBP')
+        total_sf = safe_sum('SF')
+        
+        # Calculate total bases
         if 'TB' in team_df.columns:
-            total_tb = team_df['TB'].sum()
+            total_tb = safe_sum('TB')
         else:
             # Calculate total bases from individual SLG and AB
-            total_tb = (team_df['SLG'] * team_df['AB']).sum()
+            slg_series = pd.to_numeric(team_df['SLG'], errors='coerce').fillna(0)
+            ab_series = pd.to_numeric(team_df['AB'], errors='coerce').fillna(0)
+            total_tb = (slg_series * ab_series).sum()
         
-        # Calculate total OBP components if not available
-        if 'HBP' in team_df.columns:
-            total_hbp = team_df['HBP'].sum()
-        else:
-            total_hbp = 0
-            
-        if 'SF' in team_df.columns:
-            total_sf = team_df['SF'].sum()
-        else:
-            total_sf = 0
-        
-        # Weighted calculations
+        # Weighted calculations with safe division
         team_avg = total_hits / total_ab if total_ab > 0 else 0
         
         # OBP = (H + BB + HBP) / (AB + BB + HBP + SF)
@@ -472,12 +507,12 @@ def create_team_analysis_tab(df):
             'Team_SLG': team_slg,
             'Team_OPS': team_ops,
             'Team_K_Pct': team_k_pct,
-            'Total_AB': total_ab,
-            'Total_PA': total_pa,
-            'Total_H': total_hits,
-            'Total_BB': total_bb,
-            'Total_SO': total_so,
-            'Total_TB': total_tb
+            'Total_AB': int(total_ab),
+            'Total_PA': int(total_pa),
+            'Total_H': int(total_hits),
+            'Total_BB': int(total_bb),
+            'Total_SO': int(total_so),
+            'Total_TB': int(total_tb)
         }
     
     # Calculate weighted team stats
