@@ -436,11 +436,32 @@ def create_team_analysis_tab(df):
         total_hits = team_df['H'].sum()
         total_bb = team_df['BB'].sum()
         total_so = team_df['SO'].sum()
-        total_tb = team_df['TB'].sum()
+        
+        # Calculate total bases if TB column exists, otherwise derive from SLG
+        if 'TB' in team_df.columns:
+            total_tb = team_df['TB'].sum()
+        else:
+            # Calculate total bases from individual SLG and AB
+            total_tb = (team_df['SLG'] * team_df['AB']).sum()
+        
+        # Calculate total OBP components if not available
+        if 'HBP' in team_df.columns:
+            total_hbp = team_df['HBP'].sum()
+        else:
+            total_hbp = 0
+            
+        if 'SF' in team_df.columns:
+            total_sf = team_df['SF'].sum()
+        else:
+            total_sf = 0
         
         # Weighted calculations
         team_avg = total_hits / total_ab if total_ab > 0 else 0
-        team_obp = (total_hits + total_bb) / total_pa if total_pa > 0 else 0
+        
+        # OBP = (H + BB + HBP) / (AB + BB + HBP + SF)
+        obp_denominator = total_ab + total_bb + total_hbp + total_sf
+        team_obp = (total_hits + total_bb + total_hbp) / obp_denominator if obp_denominator > 0 else 0
+        
         team_slg = total_tb / total_ab if total_ab > 0 else 0
         team_ops = team_obp + team_slg
         team_k_pct = (total_so / total_pa * 100) if total_pa > 0 else 0
@@ -452,7 +473,11 @@ def create_team_analysis_tab(df):
             'Team_OPS': team_ops,
             'Team_K_Pct': team_k_pct,
             'Total_AB': total_ab,
-            'Total_PA': total_pa
+            'Total_PA': total_pa,
+            'Total_H': total_hits,
+            'Total_BB': total_bb,
+            'Total_SO': total_so,
+            'Total_TB': total_tb
         }
     
     # Calculate weighted team stats
@@ -516,16 +541,17 @@ def create_team_analysis_tab(df):
         # Show calculation breakdown
         with st.expander("See Weighted Calculation Details"):
             st.write(f"**Calculation for {selected_team}:**")
-            st.write(f"Total Hits: {team_data['H'].sum()}")
+            st.write(f"Total Hits: {int(team_stats['Total_H'])}")
             st.write(f"Total At-Bats: {int(team_stats['Total_AB'])}")
-            st.write(f"Total Walks: {team_data['BB'].sum()}")
+            st.write(f"Total Walks: {int(team_stats['Total_BB'])}")
             st.write(f"Total Plate Appearances: {int(team_stats['Total_PA'])}")
-            st.write(f"Total Strikeouts: {team_data['SO'].sum()}")
-            st.write(f"Total Bases: {team_data['TB'].sum()}")
+            st.write(f"Total Strikeouts: {int(team_stats['Total_SO'])}")
+            st.write(f"Total Bases: {int(team_stats['Total_TB'])}")
             st.write("")
-            st.write(f"**Team AVG = Total Hits / Total AB = {team_data['H'].sum()} / {int(team_stats['Total_AB'])} = {team_stats['Team_AVG']:.3f}**")
-            st.write(f"**Team OBP = (Hits + Walks) / Total PA = ({team_data['H'].sum()} + {team_data['BB'].sum()}) / {int(team_stats['Total_PA'])} = {team_stats['Team_OBP']:.3f}**")
-            st.write(f"**Team K% = Strikeouts / Total PA = {team_data['SO'].sum()} / {int(team_stats['Total_PA'])} × 100 = {team_stats['Team_K_Pct']:.1f}%**")
+            st.write(f"**Team AVG = Total Hits / Total AB = {int(team_stats['Total_H'])} / {int(team_stats['Total_AB'])} = {team_stats['Team_AVG']:.3f}**")
+            st.write(f"**Team OBP = (Hits + Walks) / (AB + BB + HBP + SF) = {team_stats['Team_OBP']:.3f}**")
+            st.write(f"**Team SLG = Total Bases / Total AB = {int(team_stats['Total_TB'])} / {int(team_stats['Total_AB'])} = {team_stats['Team_SLG']:.3f}**")
+            st.write(f"**Team K% = Strikeouts / Total PA = {int(team_stats['Total_SO'])} / {int(team_stats['Total_PA'])} × 100 = {team_stats['Team_K_Pct']:.1f}%**")
         
         # Player list with AB weighting info
         st.subheader("Team Roster (sorted by At-Bats)")
@@ -699,7 +725,7 @@ def create_statistics_tab(df):
     
     with col1:
         st.write("**Individual Player Stats:**")
-        sample_display = team_data[['First', 'Last', 'AB', 'H', 'AVG', 'OPS']].round(3)
+        sample_display = team_data[['First', 'Last', 'AB', 'H', 'AVG', 'SLG', 'OPS']].round(3)
         sample_display['AB_Share'] = (sample_display['AB'] / sample_display['AB'].sum() * 100).round(1)
         st.dataframe(sample_display, use_container_width=True)
     
@@ -710,16 +736,26 @@ def create_statistics_tab(df):
         total_pa = team_data['PA'].sum()
         total_so = team_data['SO'].sum()
         
+        # Calculate total bases from SLG if TB not available
+        if 'TB' in team_data.columns:
+            total_tb = team_data['TB'].sum()
+        else:
+            total_tb = (team_data['SLG'] * team_data['AB']).sum()
+        
         team_avg_weighted = total_hits / total_ab if total_ab > 0 else 0
+        team_slg_weighted = total_tb / total_ab if total_ab > 0 else 0
         team_k_weighted = (total_so / total_pa * 100) if total_pa > 0 else 0
         
         st.metric("Total At-Bats", f"{total_ab}")
         st.metric("Total Hits", f"{total_hits}")
+        st.metric("Total Bases", f"{total_tb:.0f}")
         st.metric("Team AVG (Weighted)", f"{team_avg_weighted:.3f}")
+        st.metric("Team SLG (Weighted)", f"{team_slg_weighted:.3f}")
         st.metric("Team K% (Weighted)", f"{team_k_weighted:.1f}%")
         
         st.write("**Calculation:**")
         st.write(f"Team AVG = {total_hits} hits ÷ {total_ab} AB = {team_avg_weighted:.3f}")
+        st.write(f"Team SLG = {total_tb:.0f} TB ÷ {total_ab} AB = {team_slg_weighted:.3f}")
         st.write(f"Team K% = {total_so} SO ÷ {total_pa} PA × 100 = {team_k_weighted:.1f}%")
     
     # Download full dataset
