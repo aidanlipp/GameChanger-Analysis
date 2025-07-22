@@ -186,8 +186,11 @@ class BaseballAnalyzer:
         """Clean team names to show only coach names"""
         name = team_name
         
+        # Remove file numbering like (1), (2), etc.
+        name = re.sub(r'\s*\(\d+\)\s*', '', name)
+        
         # Remove prefixes
-        prefixes = ["Elite Baseball Training ", "Elite Baseball - ", "Elite Baseball-", "Elite ", "EBT "]
+        prefixes = ["Elite Baseball Training ", "Elite Baseball - ", "Elite Baseball-", "Elite Baseball ", "Elite ", "EBT "]
         for prefix in prefixes:
             if name.startswith(prefix):
                 name = name[len(prefix):]
@@ -535,7 +538,7 @@ def create_team_analysis_tab(df):
                                 options=['Overview'] + sorted(df['Team'].unique().tolist()))
     
     if selected_team == 'Overview':
-        st.subheader("Team Overview (Weighted by At-Bats)")
+        st.subheader("Team Overview")
         
         # Sort by OPS
         team_display = team_summary.sort_values('Team_OPS', ascending=False)
@@ -546,7 +549,7 @@ def create_team_analysis_tab(df):
         
         # Team OPS chart
         fig = px.bar(team_display.reset_index(), x='Team_OPS', y='Team', 
-                    orientation='h', title='Team OPS (Weighted by At-Bats)',
+                    orientation='h', title='Team OPS Rankings',
                     color='Team_OPS', color_continuous_scale='RdYlGn')
         fig.update_layout(height=600)
         st.plotly_chart(fig, use_container_width=True)
@@ -558,7 +561,7 @@ def create_team_analysis_tab(df):
         
         st.subheader(f"Team Analysis: {selected_team}")
         
-        # Team metrics
+        # Show team stats
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Total Players", len(team_data))
@@ -567,29 +570,14 @@ def create_team_analysis_tab(df):
             flagged = (team_data['Total_Flags'] > 0).sum()
             st.metric("Flagged Players", flagged, f"{flagged/len(team_data)*100:.1f}%")
         with col3:
-            st.metric("Team AVG (Weighted)", f"{team_stats['Team_AVG']:.3f}")
-            st.metric("Team OBP (Weighted)", f"{team_stats['Team_OBP']:.3f}")
+            st.metric("Team AVG", f"{team_stats['Team_AVG']:.3f}")
+            st.metric("Team OBP", f"{team_stats['Team_OBP']:.3f}")
         with col4:
-            st.metric("Team OPS (Weighted)", f"{team_stats['Team_OPS']:.3f}")
-            st.metric("Team K% (Weighted)", f"{team_stats['Team_K_Pct']:.1f}%")
+            st.metric("Team OPS", f"{team_stats['Team_OPS']:.3f}")
+            st.metric("Team K%", f"{team_stats['Team_K_Pct']:.1f}%")
         
-        # Show calculation breakdown
-        with st.expander("See Weighted Calculation Details"):
-            st.write(f"**Calculation for {selected_team}:**")
-            st.write(f"Total Hits: {int(team_stats['Total_H'])}")
-            st.write(f"Total At-Bats: {int(team_stats['Total_AB'])}")
-            st.write(f"Total Walks: {int(team_stats['Total_BB'])}")
-            st.write(f"Total Plate Appearances: {int(team_stats['Total_PA'])}")
-            st.write(f"Total Strikeouts: {int(team_stats['Total_SO'])}")
-            st.write(f"Total Bases: {int(team_stats['Total_TB'])}")
-            st.write("")
-            st.write(f"**Team AVG = Total Hits / Total AB = {int(team_stats['Total_H'])} / {int(team_stats['Total_AB'])} = {team_stats['Team_AVG']:.3f}**")
-            st.write(f"**Team OBP = (Hits + Walks) / (AB + BB + HBP + SF) = {team_stats['Team_OBP']:.3f}**")
-            st.write(f"**Team SLG = Total Bases / Total AB = {int(team_stats['Total_TB'])} / {int(team_stats['Total_AB'])} = {team_stats['Team_SLG']:.3f}**")
-            st.write(f"**Team K% = Strikeouts / Total PA = {int(team_stats['Total_SO'])} / {int(team_stats['Total_PA'])} × 100 = {team_stats['Team_K_Pct']:.1f}%**")
-        
-        # Player list with AB weighting info
-        st.subheader("Team Roster (sorted by At-Bats)")
+        # Player list with contribution info
+        st.subheader("Team Roster")
         roster_df = team_data[['First', 'Last', 'AB', 'PA', 'AVG', 'OPS', 'K%', 'Total_Flags']].copy()
         roster_df = roster_df.sort_values('AB', ascending=False)
         
@@ -695,44 +683,6 @@ def create_statistics_tab(df):
     stats_df = pd.DataFrame(stats_data)
     st.table(stats_df)
     
-    # Team Calculation Methodology
-    st.subheader("📋 How Team Statistics Are Calculated")
-    
-    with st.expander("Click to see calculation details"):
-        st.markdown("""
-        **🏆 NEW: Team statistics are now WEIGHTED by at-bats for more accurate representation:**
-        
-        **Weighted Calculations (Current Method):**
-        - **Team AVG**: Total Hits ÷ Total At-Bats for the team
-        - **Team OBP**: (Total Hits + Total Walks) ÷ Total Plate Appearances
-        - **Team SLG**: Total Bases ÷ Total At-Bats  
-        - **Team OPS**: Team OBP + Team SLG
-        - **Team K%**: Total Strikeouts ÷ Total Plate Appearances × 100
-        
-        **Example Weighted Calculation:**
-        ```
-        Player 1: 50 AB, 15 H (AVG: .300)
-        Player 2: 30 AB, 12 H (AVG: .400)  
-        Player 3: 20 AB, 4 H (AVG: .200)
-        
-        OLD METHOD (Simple Average):
-        Team AVG = (.300 + .400 + .200) / 3 = .300
-        
-        NEW METHOD (Weighted by AB):
-        Team AVG = (15+12+4) / (50+30+20) = 31/100 = .310
-        ```
-        
-        **Why Weighted is Better:**
-        - ✅ Players with more at-bats have appropriate influence
-        - ✅ Reflects actual team offensive production
-        - ✅ Matches how real baseball team stats are calculated
-        - ✅ Prevents bench players from skewing team averages
-        
-        **Previous Method (Simple Average):**
-        - Each player weighted equally regardless of playing time
-        - Good for evaluating roster depth but not team performance
-        """)
-    
     # Age group analysis
     st.subheader("Performance by Age Group")
     
@@ -746,52 +696,6 @@ def create_statistics_tab(df):
     age_stats.columns = ['Avg_AVG', 'Avg_OPS', 'Avg_K_Pct', 'Total_Players', 'Total_Flags', 'Avg_Flags']
     
     st.dataframe(age_stats, use_container_width=True)
-    
-    # Team calculation example
-    st.subheader("🔍 Sample Team Calculation (Weighted Method)")
-    
-    # Pick a team to show as example
-    sample_team = df['Team'].value_counts().index[0]  # Team with most players
-    team_data = df[df['Team'] == sample_team]
-    
-    st.write(f"**Example: {sample_team}**")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.write("**Individual Player Stats:**")
-        sample_display = team_data[['First', 'Last', 'AB', 'H', 'AVG', 'SLG', 'OPS']].round(3)
-        sample_display['AB_Share'] = (sample_display['AB'] / sample_display['AB'].sum() * 100).round(1)
-        st.dataframe(sample_display, use_container_width=True)
-    
-    with col2:
-        st.write("**Team Totals & Weighted Averages:**")
-        total_ab = team_data['AB'].sum()
-        total_hits = team_data['H'].sum()
-        total_pa = team_data['PA'].sum()
-        total_so = team_data['SO'].sum()
-        
-        # Calculate total bases from SLG if TB not available
-        if 'TB' in team_data.columns:
-            total_tb = team_data['TB'].sum()
-        else:
-            total_tb = (team_data['SLG'] * team_data['AB']).sum()
-        
-        team_avg_weighted = total_hits / total_ab if total_ab > 0 else 0
-        team_slg_weighted = total_tb / total_ab if total_ab > 0 else 0
-        team_k_weighted = (total_so / total_pa * 100) if total_pa > 0 else 0
-        
-        st.metric("Total At-Bats", f"{total_ab}")
-        st.metric("Total Hits", f"{total_hits}")
-        st.metric("Total Bases", f"{total_tb:.0f}")
-        st.metric("Team AVG (Weighted)", f"{team_avg_weighted:.3f}")
-        st.metric("Team SLG (Weighted)", f"{team_slg_weighted:.3f}")
-        st.metric("Team K% (Weighted)", f"{team_k_weighted:.1f}%")
-        
-        st.write("**Calculation:**")
-        st.write(f"Team AVG = {total_hits} hits ÷ {total_ab} AB = {team_avg_weighted:.3f}")
-        st.write(f"Team SLG = {total_tb:.0f} TB ÷ {total_ab} AB = {team_slg_weighted:.3f}")
-        st.write(f"Team K% = {total_so} SO ÷ {total_pa} PA × 100 = {team_k_weighted:.1f}%")
     
     # Download full dataset
     st.subheader("Export Data")
