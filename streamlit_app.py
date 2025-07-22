@@ -87,7 +87,12 @@ class BaseballAnalyzer:
                 # Find the header line (contains "Number", "Last", "First", etc.)
                 header_line_idx = None
                 for idx, line in enumerate(lines):
-                    if '"Number"' in line and '"Last"' in line and '"First"' in line:
+                    # Check for both quoted and unquoted header patterns
+                    has_number = ('Number' in line or '"Number"' in line)
+                    has_last = ('Last' in line or '"Last"' in line)
+                    has_first = ('First' in line or '"First"' in line)
+                    
+                    if has_number and has_last and has_first:
                         header_line_idx = idx
                         break
                 
@@ -185,9 +190,6 @@ class BaseballAnalyzer:
     def clean_team_name(self, team_name):
         """Clean team names to show only coach names"""
         name = team_name
-        
-        # Remove file numbering like (1), (2), etc.
-        name = re.sub(r'\s*\(\d+\)\s*', '', name)
         
         # Remove prefixes
         prefixes = ["Elite Baseball Training ", "Elite Baseball - ", "Elite Baseball-", "Elite Baseball ", "Elite ", "EBT "]
