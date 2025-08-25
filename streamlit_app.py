@@ -1,7 +1,4 @@
 # Elite Baseball Training - Streamlit Web App
-# Save this as: streamlit_app.py
-# Run with: streamlit run streamlit_app.py
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -16,7 +13,6 @@ import glob
 # Page configuration
 st.set_page_config(
     page_title="Elite Baseball Training - Program Analysis",
-    page_icon="⚾",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -57,14 +53,14 @@ class BaseballAnalyzer:
     def load_data_from_folder(self, data_folder="data"):
         """Load and process CSV files from local data folder"""
         if not os.path.exists(data_folder):
-            st.error(f"❌ Data folder '{data_folder}' not found!")
+            st.error(f"Data folder '{data_folder}' not found!")
             st.info(f"Please create a '{data_folder}' folder and add your CSV files there.")
             return False
         
         csv_files = glob.glob(os.path.join(data_folder, "*.csv"))
         
         if not csv_files:
-            st.error(f"❌ No CSV files found in '{data_folder}' folder!")
+            st.error(f"No CSV files found in '{data_folder}' folder!")
             st.info(f"Please add your GameChanger CSV files to the '{data_folder}' folder.")
             return False
         
@@ -80,14 +76,12 @@ class BaseballAnalyzer:
                 status_text.text(f"Processing {os.path.basename(csv_file)}...")
                 
                 # Read CSV with special handling for GameChanger format
-                # Read all lines first
                 with open(csv_file, 'r', encoding='utf-8') as f:
                     lines = f.readlines()
                 
-                # Find the header line (contains "Number", "Last", "First", etc.)
+                # Find the header line
                 header_line_idx = None
                 for idx, line in enumerate(lines):
-                    # Check for both quoted and unquoted header patterns
                     has_number = ('Number' in line or '"Number"' in line)
                     has_last = ('Last' in line or '"Last"' in line)
                     has_first = ('First' in line or '"First"' in line)
@@ -97,7 +91,7 @@ class BaseballAnalyzer:
                         break
                 
                 if header_line_idx is None:
-                    st.warning(f"⚠️ Could not find proper headers in {os.path.basename(csv_file)}")
+                    st.warning(f"Could not find proper headers in {os.path.basename(csv_file)}")
                     continue
                 
                 # Read from header line onwards
@@ -105,8 +99,6 @@ class BaseballAnalyzer:
                 
                 # Extract team info from filename
                 team_info = os.path.basename(csv_file).replace('.csv', '').replace('Stats', '').strip()
-                
-                # Clean team names
                 team_info = self.clean_team_name(team_info)
                 
                 # Clean column names
@@ -115,11 +107,10 @@ class BaseballAnalyzer:
                 # Focus on batting data (first 54 columns or until pitching section)
                 batting_cols = []
                 for col in df.columns:
-                    if 'IP' in col and len(batting_cols) > 20:  # IP usually starts pitching section
+                    if 'IP' in col and len(batting_cols) > 20:
                         break
                     batting_cols.append(col)
                 
-                # Keep only batting columns (up to about 54 columns or before pitching starts)
                 if len(batting_cols) > 54:
                     batting_cols = batting_cols[:54]
                 
@@ -133,24 +124,20 @@ class BaseballAnalyzer:
                 if 'Last' in df.columns and 'First' in df.columns:
                     df = df.dropna(subset=['Last', 'First'])
                     df = df[df['Last'].notna() & (df['Last'] != '')]
-                    df = df[df['Last'] != 'Last']  # Remove any duplicate header rows
+                    df = df[df['Last'] != 'Last']
                 
-                # Convert numeric columns with robust error handling
+                # Convert numeric columns with error handling
                 numeric_cols = ['GP', 'PA', 'AB', 'AVG', 'OBP', 'OPS', 'SLG', 'H', '1B', '2B', 
                               '3B', 'HR', 'RBI', 'R', 'BB', 'SO', 'HBP', 'GB%', 'LD%', 'FB%', 'BABIP', 'TB', 'SF']
                 
                 for col in numeric_cols:
                     if col in df.columns:
-                        # Convert to string first, then handle special values
                         df[col] = df[col].astype(str)
-                        # Replace problematic values
                         df[col] = df[col].replace(['-', '', 'nan', 'NaN', '#DIV/0!', '#N/A', 'inf', '-inf'], np.nan)
-                        # Convert to numeric, coercing errors to NaN
                         df[col] = pd.to_numeric(df[col], errors='coerce')
                 
-                # Calculate K% with better error handling
+                # Calculate K%
                 if 'SO' in df.columns and 'PA' in df.columns:
-                    # Ensure both columns are numeric
                     df['SO'] = pd.to_numeric(df['SO'], errors='coerce')
                     df['PA'] = pd.to_numeric(df['PA'], errors='coerce')
                     
@@ -163,14 +150,12 @@ class BaseballAnalyzer:
                 # Filter players with at least 20 AB
                 if 'AB' in df.columns:
                     df['AB'] = pd.to_numeric(df['AB'], errors='coerce')
-                    initial_count = len(df)
                     df = df[df['AB'] >= 20]
-                    filtered_count = initial_count - len(df)
                 
                 all_data.append(df)
                 
             except Exception as e:
-                st.warning(f"⚠️ Error processing {os.path.basename(csv_file)}: {str(e)}")
+                st.warning(f"Error processing {os.path.basename(csv_file)}: {str(e)}")
         
         # Clear progress indicators
         progress_bar.empty()
@@ -181,10 +166,10 @@ class BaseballAnalyzer:
             self.df['Age_Group'] = self.df['Team'].apply(self.extract_age_group)
             self.flag_players()
             
-            st.success(f"✅ Successfully loaded {len(csv_files)} CSV files with {len(self.df)} players!")
+            st.success(f"Successfully loaded {len(csv_files)} CSV files with {len(self.df)} players!")
             return True
         
-        st.error("❌ No valid data could be loaded from CSV files.")
+        st.error("No valid data could be loaded from CSV files.")
         return False
     
     def clean_team_name(self, team_name):
@@ -222,16 +207,13 @@ class BaseballAnalyzer:
     
     def extract_age_group(self, team_name):
         """Extract age group from team name"""
-        # First try to find standard age pattern (e.g., "16U", "15U")
         age_match = re.search(r'(\d+)U', team_name)
         if age_match:
             return f"{age_match.group(1)}U"
         
-        # Handle special cases
         if 'Ayeski' in team_name:
-            return "17U"  # Ayeski is a 17U team
+            return "17U"
         
-        # Try to find just age numbers in context
         age_match = re.search(r'\b(\d{2})\b', team_name)
         if age_match:
             age = int(age_match.group(1))
@@ -245,7 +227,6 @@ class BaseballAnalyzer:
         if self.df is None:
             return
         
-        # Create flags
         self.df['Flag_AVG_Low'] = (self.df['AVG'] < self.flag_criteria['AVG_low']) & self.df['AVG'].notna()
         self.df['Flag_SLG_Low'] = (self.df['SLG'] < self.flag_criteria['SLG_low']) & self.df['SLG'].notna()
         self.df['Flag_OPS_Low'] = (self.df['OPS'] < self.flag_criteria['OPS_low']) & self.df['OPS'].notna()
@@ -257,7 +238,7 @@ class BaseballAnalyzer:
         self.df['Total_Flags'] = self.df[flag_cols].sum(axis=1)
 
 def main():
-    st.markdown('<h1 class="main-header">⚾ Elite Baseball Training - Program Analysis Dashboard</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">Elite Baseball Training - Program Analysis Dashboard</h1>', unsafe_allow_html=True)
     
     # Initialize analyzer
     if 'analyzer' not in st.session_state:
@@ -266,12 +247,12 @@ def main():
     
     # Sidebar for data management
     with st.sidebar:
-        st.header("📁 Data Management")
+        st.header("Data Management")
         
         # Data folder info
         data_folder = st.text_input("Data Folder Path", value="data", help="Folder containing your CSV files")
         
-        if st.button("🔄 Load/Reload Data"):
+        if st.button("Load/Reload Data"):
             with st.spinner("Loading data from folder..."):
                 if st.session_state.analyzer.load_data_from_folder(data_folder):
                     st.session_state.data_loaded = True
@@ -282,10 +263,10 @@ def main():
         # Show data folder contents
         if os.path.exists(data_folder):
             csv_files = glob.glob(os.path.join(data_folder, "*.csv"))
-            st.subheader("📋 Files in Data Folder")
+            st.subheader("Files in Data Folder")
             if csv_files:
                 for csv_file in csv_files:
-                    st.text(f"📄 {os.path.basename(csv_file)}")
+                    st.text(f"{os.path.basename(csv_file)}")
             else:
                 st.info("No CSV files found in data folder")
         else:
@@ -293,26 +274,26 @@ def main():
         
         # Flag criteria adjustment
         if st.session_state.data_loaded and st.session_state.analyzer.df is not None:
-            st.header("⚙️ Flag Criteria")
+            st.header("Flag Criteria")
             st.session_state.analyzer.flag_criteria['AVG_low'] = st.number_input("AVG < ", value=0.250, step=0.001, format="%.3f")
             st.session_state.analyzer.flag_criteria['SLG_low'] = st.number_input("SLG < ", value=0.350, step=0.001, format="%.3f")
             st.session_state.analyzer.flag_criteria['OPS_low'] = st.number_input("OPS < ", value=0.700, step=0.001, format="%.3f")
             st.session_state.analyzer.flag_criteria['GB_high'] = st.number_input("GB% > ", value=66.0, step=0.1, format="%.1f")
             st.session_state.analyzer.flag_criteria['K_high'] = st.number_input("K% > ", value=30.0, step=0.1, format="%.1f")
             
-            if st.button("🔄 Update Flags"):
+            if st.button("Update Flags"):
                 st.session_state.analyzer.flag_players()
                 st.rerun()
     
     # Main content
     if not st.session_state.data_loaded or st.session_state.analyzer.df is None:
-        st.info("👆 Please load data using the sidebar to get started.")
+        st.info("Please load data using the sidebar to get started.")
         return
     
     df = st.session_state.analyzer.df
     
     # Program Overview Metrics
-    st.header("📊 Program Overview")
+    st.header("Program Overview")
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -326,7 +307,7 @@ def main():
         st.metric("Program AVG", f"{df['AVG'].mean():.3f}")
     
     # Tabs for different views
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📈 Dashboard", "🚩 Flagged Players", "👥 Team Analysis", "📋 Individual Lookup", "📊 Statistics"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "Flagged Players", "Team Analysis", "Individual Lookup", "Statistics"])
     
     with tab1:
         create_dashboard_tab(df)
@@ -397,12 +378,12 @@ def create_dashboard_tab(df):
 
 def create_flagged_players_tab(df):
     """Create the flagged players tab"""
-    st.header("🚩 Flagged Players Analysis")
+    st.header("Flagged Players Analysis")
     
     flagged_df = df[df['Total_Flags'] > 0]
     
     if len(flagged_df) == 0:
-        st.success("🎉 No players are currently flagged! Great job!")
+        st.success("No players are currently flagged! Great job!")
         return
     
     # Filter options
@@ -456,7 +437,7 @@ def create_flagged_players_tab(df):
         # Download button
         csv = display_df.to_csv(index=False)
         st.download_button(
-            label="📥 Download Flagged Players CSV",
+            label="Download Flagged Players CSV",
             data=csv,
             file_name="flagged_players.csv",
             mime="text/csv"
@@ -466,12 +447,11 @@ def create_flagged_players_tab(df):
 
 def create_team_analysis_tab(df):
     """Create the team analysis tab"""
-    st.header("👥 Team Analysis")
+    st.header("Team Analysis")
     
     # Team summary with weighted calculations
     def calculate_weighted_team_stats(team_df):
         """Calculate team stats weighted by at-bats"""
-        # Ensure all values are numeric and handle NaN values
         def safe_sum(column_name):
             if column_name in team_df.columns:
                 series = pd.to_numeric(team_df[column_name], errors='coerce')
@@ -490,7 +470,6 @@ def create_team_analysis_tab(df):
         if 'TB' in team_df.columns:
             total_tb = safe_sum('TB')
         else:
-            # Calculate total bases from individual SLG and AB
             slg_series = pd.to_numeric(team_df['SLG'], errors='coerce').fillna(0)
             ab_series = pd.to_numeric(team_df['AB'], errors='coerce').fillna(0)
             total_tb = (slg_series * ab_series).sum()
@@ -498,7 +477,6 @@ def create_team_analysis_tab(df):
         # Weighted calculations with safe division
         team_avg = total_hits / total_ab if total_ab > 0 else 0
         
-        # OBP = (H + BB + HBP) / (AB + BB + HBP + SF)
         obp_denominator = total_ab + total_bb + total_hbp + total_sf
         team_obp = (total_hits + total_bb + total_hbp) / obp_denominator if obp_denominator > 0 else 0
         
@@ -591,7 +569,7 @@ def create_team_analysis_tab(df):
 
 def create_individual_lookup_tab(df):
     """Create the individual player lookup tab"""
-    st.header("📋 Individual Player Lookup")
+    st.header("Individual Player Lookup")
     
     # Player search
     players = df['First'] + ' ' + df['Last'] + ' (' + df['Team'] + ')'
@@ -631,28 +609,28 @@ def create_individual_lookup_tab(df):
             # Flag status
             st.markdown("**Flag Status**")
             if player['Total_Flags'] == 0:
-                st.success("✅ No flags - performing well!")
+                st.success("No flags - performing well!")
             else:
-                st.warning(f"⚠️ {int(player['Total_Flags'])} flag(s) identified")
+                st.warning(f"{int(player['Total_Flags'])} flag(s) identified")
                 
                 flags = []
                 if player['Flag_AVG_Low']:
-                    flags.append("🔴 Low Batting Average")
+                    flags.append("Low Batting Average")
                 if player['Flag_SLG_Low']:
-                    flags.append("🟠 Low Slugging Percentage")
+                    flags.append("Low Slugging Percentage")
                 if player['Flag_OPS_Low']:
-                    flags.append("🟡 Low OPS")
+                    flags.append("Low OPS")
                 if player['Flag_GB_High']:
-                    flags.append("🟤 High Ground Ball Rate")
+                    flags.append("High Ground Ball Rate")
                 if player['Flag_K_High']:
-                    flags.append("🟣 High Strikeout Rate")
+                    flags.append("High Strikeout Rate")
                 
                 for flag in flags:
-                    st.write(flag)
+                    st.write(f"- {flag}")
 
 def create_statistics_tab(df):
     """Create the statistics tab"""
-    st.header("📊 Program Statistics")
+    st.header("Program Statistics")
     
     # Overall statistics
     st.subheader("Program Performance Summary")
@@ -702,7 +680,7 @@ def create_statistics_tab(df):
     # Download full dataset
     st.subheader("Export Data")
     
-    if st.button("📥 Download Complete Dataset"):
+    if st.button("Download Complete Dataset"):
         csv = df.to_csv(index=False)
         st.download_button(
             label="Download CSV",
